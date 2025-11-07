@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>آلة حاسبة</title>
+  <style>
+    :root{
+      --bg:#0f1724; --panel:#0b1220; --accent:#06b6d4; --text:#e6eef6;
+      --btn:#1e293b; --btn-hover:#263449; --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:system-ui, "Segoe UI", Roboto, "Noto Naskh Arabic", "Segoe UI Emoji";
+      background:linear-gradient(180deg,#071022 0%,#0b1730 100%); color:var(--text);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .calc {
+      width:380px; max-width:100%;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
+      border-radius:12px; padding:18px; box-shadow:0 10px 30px rgba(2,6,23,0.6);
+    }
+    .screen {
+      background:var(--panel); padding:12px; border-radius:8px; margin-bottom:12px;
+      min-height:86px; display:flex; flex-direction:column; justify-content:center;
+    }
+    .display {
+      font-size:26px; text-align:right; line-height:1.2; word-wrap:break-word;
+      font-weight:600; direction:rtl;
+    }
+    .sub-display { font-size:12px; opacity:0.7; text-align:right; direction:rtl; margin-top:6px; color:#abb7c6;}
+    .grid {
+      display:grid; gap:8px;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    button {
+      background:var(--btn); color:var(--text); border:0; padding:18px; font-size:18px; border-radius:8px;
+      cursor:pointer; transition:transform .06s ease, background .12s;
+    }
+    button:active{ transform:translateY(1px) }
+    button:hover{ background:var(--btn-hover) }
+    .op { background:linear-gradient(180deg,#0b3b45,#054a4f); color:white; }
+    .equal { background:linear-gradient(180deg,#2563eb,#1e40af); grid-column: span 2; }
+    .wide { grid-column: span 2; }
+    .danger { background:linear-gradient(180deg,#ef4444,#b91c1c); }
+    .history {
+      margin-top:12px; max-height:120px; overflow:auto; background:rgba(255,255,255,0.02);
+      padding:8px; border-radius:8px; font-size:13px; color:#cfe9f0;
+    }
+    .history-item { padding:6px 8px; border-radius:6px; margin-bottom:6px; background:rgba(0,0,0,0.15); display:flex; justify-content:space-between; gap:8px; direction:rtl;}
+    .small { font-size:13px; opacity:0.85 }
+    @media (max-width:420px){
+      .calc{ padding:12px }
+      button{ padding:14px; font-size:16px }
+      .display{ font-size:22px }
+    }
+  </style>
+</head>
+<body>
+  <main class="calc" role="application" aria-label="آلة حاسبة">
+    <div class="screen" aria-live="polite">
+      <div id="display" class="display" dir="rtl">0</div>
+      <div id="sub" class="sub-display">—</div>
+    </div>
+
+    <div class="grid" role="group" aria-label="لوحة الأزرار">
+      <button id="clear" class="danger" aria-label="مسح الكل">C</button>
+      <button id="back" aria-label="حذف">⌫</button>
+      <button id="percent" aria-label="نسبة">%</button>
+      <button data-op="/" class="op" aria-label="قسمة">÷</button>
+
+      <button data-num="7">7</button>
+      <button data-num="8">8</button>
+      <button data-num="9">9</button>
+      <button data-op="*" class="op" aria-label="ضرب">×</button>
+
+      <button data-num="4">4</button>
+      <button data-num="5">5</button>
+      <button data-num="6">6</button>
+      <button data-op="-" class="op" aria-label="طرح">−</button>
+
+      <button data-num="1">1</button>
+      <button data-num="2">2</button>
+      <button data-num="3">3</button>
+      <button data-op="+" class="op" aria-label="جمع">+</button>
+
+      <button data-num="0" class="wide">0</button>
+      <button id="dot" aria-label="نقطة">.</button>
+      <button id="equals" class="equal" aria-label="يساوي">=</button>
+    </div>
+
+    <div id="history" class="history" aria-label="سجل الحسابات">
+    </div>
+  </main>
+
+  <script>
+    const display = document.getElementById('display');
+    const sub = document.getElementById('sub');
+    const historyEl = document.getElementById('history');
+    let current = '0', previous = null, op = null, waitForNext = false, hist = [];
+    function updateScreen(){display.textContent=current;sub.textContent=previous===null?'—':`${previous} ${op??''}`;}
+    function inputNumber(n){if(waitForNext){current=n;waitForNext=false;}else{if(current==='0'&&n!=='.')current=n;else current=(current+n).slice(0,30);}updateScreen();}
+    function inputDot(){if(waitForNext){current='0.';waitForNext=false;}else if(!current.includes('.')){current+='.';}updateScreen();}
+    function handleOperator(nextOp){const num=parseFloat(current);if(previous===null){previous=num;}else if(!waitForNext){previous=compute(previous,num,op);}op=nextOp;waitForNext=true;current=trimNumber(previous);updateScreen();}
+    function compute(a,b,o){if(o==='+')return a+b;if(o==='-')return a-b;if(o==='*')return a*b;if(o==='/')return b===0?NaN:a/b;return b;}
+    function trimNumber(x){if(Number.isNaN(x))return'خطأ';const s=String(x);if(s.length>16)return Number(x.toFixed(10)).toString();return s;}
+    function equals(){if(op===null||previous===null)return;const result=compute(previous,parseFloat(current),op);const expr=`${trimNumber(previous)} ${op} ${trimNumber(parseFloat(current))} = ${trimNumber(result)}`;addHistory(expr);current=trimNumber(result);previous=null;op=null;waitForNext=true;updateScreen();}
+    function addHistory(text){hist.unshift(text);if(hist.length>20)hist.pop();renderHistory();}
+    function renderHistory(){historyEl.innerHTML='';for(const item of hist){const div=document.createElement('div');div.className='history-item';div.innerHTML=`<span class="small">${item.split('=')[0]}</span><strong dir="rtl">${item.split('=').slice(-1)}</strong>`;historyEl.appendChild(div);}}
+    function clearAll(){current='0';previous=null;op=null;waitForNext=false;updateScreen();}
+    function backspace(){if(waitForNext)return;if(current.length<=1)current='0';else current=current.slice(0,-1);updateScreen();}
+    function percent(){current=String(parseFloat(current)/100);updateScreen();}
+    document.querySelectorAll('[data-num]').forEach(b=>b.addEventListener('click',()=>inputNumber(b.dataset.num)));
+    document.querySelectorAll('[data-op]').forEach(b=>b.addEventListener('click',()=>handleOperator(b.dataset.op)));
+    document.getElementById('dot').addEventListener('click',inputDot);
+    document.getElementById('equals').addEventListener('click',equals);
+    document.getElementById('clear').addEventListener('click',clearAll);
+    document.getElementById('back').addEventListener('click',backspace);
+    document.getElementById('percent').addEventListener('click',percent);
+    window.addEventListener('keydown',e=>{if(e.key>='0'&&e.key<='9'){inputNumber(e.key);return;}if(e.key==='.')inputDot();if(e.key==='Enter'||e.key==='='){e.preventDefault();equals();}if(e.key==='Backspace')backspace();if(e.key==='Escape')clearAll();if(e.key==='%')percent();if(['+','-','*','/'].includes(e.key))handleOperator(e.key);});
+    updateScreen();
+  </script>
+</body>
+</html>
